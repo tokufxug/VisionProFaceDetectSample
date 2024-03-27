@@ -7,20 +7,52 @@
 
 import SwiftUI
 import RealityKit
-import RealityKitContent
+import Vision
 
 struct ContentView: View {
+    
+    @State private var image = UIImage(named: "faces")
+    @State private var faces: [VNFaceObservation] = []
+    @State private var imageSize: CGSize = CGSizeZero
+    
     var body: some View {
         VStack {
-            Model3D(named: "Scene", bundle: realityKitContentBundle)
-                .padding(.bottom, 50)
-
-            Text("Hello, world!")
+            ZStack(alignment: .topLeading) {
+                GeometryReader { geometry in
+                    Image(uiImage: image!)
+                        .resizable()
+                        .onAppear {
+                            imageSize = CGSize(width: geometry.size.width, height: geometry.size.height)
+                        }
+                }
+                
+                ForEach(faces, id: \.self) { face in
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.red,lineWidth: 2)
+                        .frame(width: face.boundingBox.width * imageSize.width,
+                               height: face.boundingBox.height * imageSize.height
+                        )
+                        .offset(x: face.boundingBox.minX * imageSize.width,
+                                y: (0.925 - face.boundingBox.minY) * imageSize.height
+                        )
+                }
+                Button(action: {
+                    detectFaces()
+                }) {
+                    Text("Detect Faces")
+                }
+            }
         }
-        .padding()
     }
-}
-
-#Preview(windowStyle: .automatic) {
-    ContentView()
+       
+    func detectFaces() {
+        guard let image = image else { return }
+        let request = VNDetectFaceRectanglesRequest { (request, error) in
+            if let faces = request.results as? [VNFaceObservation] {
+                self.faces = faces
+            }
+        }
+        let handler = VNImageRequestHandler(cgImage: image.cgImage!, options: [:])
+        try? handler.perform([request])
+    }
 }
